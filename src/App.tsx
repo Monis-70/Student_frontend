@@ -22,6 +22,8 @@ import TransactionStatusPage from './Pages/transactions/TransactionStatusPage';
 import AnalyticsPage from './Pages/analytics/AnalyticsPage';
 import WebhookLogsPage from './Pages/webhooks/WebhookLogsPage';
 import HealthPage from './Pages/System/HealthPage';
+import PaymentSuccess from './Pages/Payments/Success';
+
 
 // Protected Route Component
 import ProtectedRoute from './Components/ProtectedRoute';
@@ -65,20 +67,18 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/payments/create" element={<CreatePaymentPage />} />
-            <Route path="/payments/status/:orderId" element={<PaymentStatusPage />} />
-            <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/transactions/school/:schoolId" element={<TransactionsBySchoolPage />} />
-            <Route path="/transactions/status" element={<TransactionStatusPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/webhooks/logs" element={<WebhookLogsPage />} />
-            <Route path="/system/health" element={<HealthPage />} />
-             
+    <Route path="/" element={<DashboardPage />} />
+    <Route path="/profile" element={<ProfilePage />} />
+    <Route path="/payments/create" element={<CreatePaymentPage />} />
+    
+    {/* ✅ Payment Success via query params */}
+    <Route path="/payments/status" element={<PaymentSuccess />} />
 
-  <Route path="/transactions/status/:orderId" element={<TransactionStatusPage />} />
-  <Route path="/schools/:schoolId/transactions" element={<TransactionsBySchoolPage />} />
+    <Route path="/transactions" element={<TransactionsPage />} />
+    <Route path="/transactions/school/:schoolId" element={<TransactionsBySchoolPage />} />
+    <Route path="/analytics" element={<AnalyticsPage />} />
+    <Route path="/webhooks/logs" element={<WebhookLogsPage />} />
+    <Route path="/system/health" element={<HealthPage />} />
           </Route>
 
           {/* Redirect */}

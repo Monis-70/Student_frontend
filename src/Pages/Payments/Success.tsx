@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
+
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get('orderId');
-  const [status, setStatus] = useState('pending');
+  const orderId = searchParams.get('EdvironCollectRequestId'); // ✅ fix here
+  const statusFromUrl = searchParams.get('status'); // ✅ use status from query
+  const [status, setStatus] = useState(statusFromUrl || 'pending');
   const [amount, setAmount] = useState(0);
 
   const fetchStatus = async () => {
@@ -18,6 +21,15 @@ const PaymentSuccess = () => {
       console.error(err);
     }
   };
+
+  const queryClient = useQueryClient();
+
+useEffect(() => {
+  if (status?.toLowerCase() === 'success') {
+    // ✅ Refresh transactions list cache
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+  }
+}, [status, queryClient]);
 
   useEffect(() => {
     fetchStatus();
