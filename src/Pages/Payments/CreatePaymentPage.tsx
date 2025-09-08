@@ -41,32 +41,42 @@ export default function CreatePaymentPage() {
     },
   });
 
+// Updated onSubmit function with debugging
 const onSubmit = async (data: PaymentFormData) => {
   setIsLoading(true);
   try {
-const payload = {
-  amount: parseFloat(data.amount),
-  student_info: {
-    name: data.studentInfo.name,
-    id: data.studentInfo.id,
-    email: data.studentInfo.email,
-    ...(data.studentInfo.phone && { phone: data.studentInfo.phone }),
-    ...(data.studentInfo.class && { class: data.studentInfo.class }),
-    ...(data.studentInfo.section && { section: data.studentInfo.section }),
-  },
-  fee_type: data.feeType, // must match backend
-  gateway_name: data.gateway, // must match backend
-  return_url: `${window.location.origin}/payments/status`, 
-};
+    const payload = {
+      amount: parseFloat(data.amount),
+      student_info: {
+        name: data.studentInfo.name,
+        id: data.studentInfo.id,
+        email: data.studentInfo.email,
+        ...(data.studentInfo.phone && { phone: data.studentInfo.phone }),
+        ...(data.studentInfo.class && { class: data.studentInfo.class }),
+        ...(data.studentInfo.section && { section: data.studentInfo.section }),
+      },
+      fee_type: data.feeType,
+      gateway: data.gateway,
+      return_url: `${window.location.origin}/payments/status`,
+    };
 
     console.log('Sending payment data:', payload);
 
     const response = await apiClient.createPayment(payload);
+    
+    // ✅ Add detailed logging
+    console.log('Full API response:', response);
+    console.log('Payment URL:', response.paymentUrl);
+    console.log('Success flag:', response.success);
 
     if (response.success) {
       toast.success('Payment initiated successfully!');
       if (response.paymentUrl) {
-        window.location.href = response.paymentUrl; // redirect to payment gateway
+        console.log('Redirecting to:', response.paymentUrl);
+        window.location.href = response.paymentUrl;
+      } else {
+        console.error('No payment URL in response');
+        toast.error('Payment URL not received');
       }
     }
   } catch (error: any) {

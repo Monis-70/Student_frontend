@@ -107,10 +107,9 @@ class ApiClient {
 
   // Payment endpoints
 async createPayment(data: any) {
-  // convert camelCase to snake_case before sending
-  const payload = camelToSnake(data);
-
-  const response = await this.client.post('/payments/create-payment', payload);
+  console.log('Sending payment data:', data);
+  
+  const response = await this.client.post('/payments/create-payment', data);
 
   return {
     ...response.data,
