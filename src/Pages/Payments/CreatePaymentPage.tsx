@@ -55,9 +55,9 @@ const onSubmit = async (data: PaymentFormData) => {
         ...(data.studentInfo.class && { class: data.studentInfo.class }),
         ...(data.studentInfo.section && { section: data.studentInfo.section }),
       },
-      fee_type: data.feeType,
+      feeType: data.feeType,
       gateway: data.gateway,
-      return_url: `${window.location.origin}/payments/status`,
+      returnUrl: `${window.location.origin}/payments/status`,
     };
 
     console.log('Sending payment data:', payload);
