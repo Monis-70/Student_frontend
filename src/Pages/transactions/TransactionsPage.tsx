@@ -168,27 +168,31 @@ export default function TransactionsPage() {
                 </tr>
               ) : (
                 data?.data?.map((tx: any) => (
-                  <tr key={tx.collect_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm">{tx.custom_order_id?.slice(0, 15)}...</td>
-                    <td className="px-4 py-3 text-sm">
-                      <div>
-                        <p className="font-medium">{tx.student_info?.name}</p>
-                        <p className="text-xs text-gray-500">{tx.student_info?.email}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium">{formatCurrency(tx.order_amount)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        tx.status === 'success' ? 'bg-green-100 text-green-800' :
-                        tx.status === 'failed' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{tx.gateway}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{formatDate(tx.created_at)}</td>
-                  </tr>
+                // Fixed section of TransactionsPage.tsx - replace the table row
+<tr key={tx.collect_id} className="hover:bg-gray-50">
+  <td className="px-4 py-3 text-sm">{tx.custom_order_id?.slice(0, 15)}...</td>
+  <td className="px-4 py-3 text-sm">
+    <div>
+      <p className="font-medium">{tx.student_info?.name}</p>
+      <p className="text-xs text-gray-500">{tx.student_info?.email}</p>
+    </div>
+  </td>
+  <td className="px-4 py-3 text-sm font-medium">{formatCurrency(tx.order_amount)}</td>
+  <td className="px-4 py-3">
+    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+      tx.status === 'success' ? 'bg-green-100 text-green-800' :
+      tx.status === 'failed' ? 'bg-red-100 text-red-800' :
+      'bg-yellow-100 text-yellow-800'
+    }`}>
+      {tx.status}
+    </span>
+  </td>
+  <td className="px-4 py-3 text-sm">{tx.gateway}</td>
+  <td className="px-4 py-3 text-sm text-gray-500">
+    {/* ✅ Safe date formatting with fallback */}
+    {tx.created_at ? formatDate(tx.created_at) : 'N/A'}
+  </td>
+</tr>
                 ))
               )}
             </tbody>
