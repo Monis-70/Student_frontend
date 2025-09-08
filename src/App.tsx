@@ -8,7 +8,7 @@ import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 
 // Auth Pages
-import LoginPage from './pages/auth/LoginPage';
+import LoginPage from 'Pages/Auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import ProfilePage from './pages/auth/ProfilePage';
 
