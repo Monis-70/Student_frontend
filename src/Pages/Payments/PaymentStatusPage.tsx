@@ -5,16 +5,26 @@ import toast from 'react-hot-toast';
 import apiClient from '../../lib/api-client';
 import { formatCurrency, formatDate } from '../../lib/utils';
 
+// ✅ Strongly typed payment status response
+interface PaymentStatus {
+  orderId: string;
+  status: 'success' | 'failed' | 'pending';
+  amount: number;
+  paymentMode?: string;
+  paymentTime?: string;
+  message?: string;
+}
+
 export default function PaymentStatusPage() {
-  const { orderId } = useParams();
-  const [paymentStatus, setPaymentStatus] = useState<any>(null);
+  const { orderId } = useParams<{ orderId: string }>();
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [polling, setPolling] = useState<NodeJS.Timeout | null>(null);
+  const [polling, setPolling] = useState<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStatus = async () => {
     if (!orderId) return;
     try {
-      const data = await apiClient.collectPaymentStatus(orderId);
+      const data: PaymentStatus = await apiClient.collectPaymentStatus(orderId);
       setPaymentStatus(data);
 
       // Stop polling if payment is final
@@ -23,9 +33,11 @@ export default function PaymentStatusPage() {
       }
 
       setIsLoading(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to fetch payment status');
+      const message =
+        (err as any)?.response?.data?.message || 'Failed to fetch payment status';
+      toast.error(message);
       setIsLoading(false);
       if (polling) clearInterval(polling);
     }
@@ -63,7 +75,7 @@ export default function PaymentStatusPage() {
 
       <div className="card text-center">
         <div className="flex flex-col items-center gap-4">
-          {getStatusIcon(paymentStatus?.status)}
+          {getStatusIcon(paymentStatus?.status || 'pending')}
           <h2 className="text-xl font-semibold capitalize">{paymentStatus?.status}</h2>
           <p className="text-gray-600">Order ID: {paymentStatus?.orderId}</p>
         </div>

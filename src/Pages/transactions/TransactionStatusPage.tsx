@@ -1,13 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Search, CheckCircle, XCircle, Clock } from 'lucide-react';
 import apiClient from '../../lib/api-client';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
+// ✅ Transaction status response type
+interface StudentInfo {
+  name: string;
+  email: string;
+}
+
+interface TransactionStatus {
+  status: 'success' | 'failed' | 'pending';
+  customOrderId: string;
+  amount: number;
+  gateway: string;
+  paymentMode?: string;
+  paymentTime?: string;
+  bankReference?: string;
+  errorMessage?: string;
+  studentInfo?: StudentInfo;
+  schoolId?: string;
+}
+
 export default function TransactionStatusPage() {
-  const [orderId, setOrderId] = useState('');
-  const [status, setStatus] = useState<any>(null);
+  const { orderId: paramOrderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
+
+  const [orderId, setOrderId] = useState(paramOrderId || '');
+  const [status, setStatus] = useState<TransactionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (paramOrderId) {
+      handleSearch(); // auto fetch if navigated with /transactions/status/:orderId
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramOrderId]);
 
   const handleSearch = async () => {
     if (!orderId.trim()) {
@@ -17,7 +47,8 @@ export default function TransactionStatusPage() {
 
     setIsLoading(true);
     try {
-      const response = await apiClient.getTransactionStatus(orderId);
+      const response: { transaction: TransactionStatus } =
+        await apiClient.getTransactionStatus(orderId);
       setStatus(response.transaction);
     } catch (error) {
       setStatus(null);
@@ -42,32 +73,34 @@ export default function TransactionStatusPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Check Transaction Status</h1>
 
-      <div className="card">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            placeholder="Enter Order ID (e.g., ORD_1234567890_abcd1234)"
-            className="input flex-1"
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={isLoading}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                Search
-              </>
-            )}
-          </button>
+      {!paramOrderId && (
+        <div className="card">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+              placeholder="Enter Order ID (e.g., ORD_1234567890_abcd1234)"
+              className="input flex-1"
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  Search
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {status && (
         <div className="card">
@@ -103,7 +136,9 @@ export default function TransactionStatusPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Payment Time</p>
-                <p className="font-medium">{status.paymentTime ? formatDate(status.paymentTime) : 'N/A'}</p>
+                <p className="font-medium">
+                  {status.paymentTime ? formatDate(status.paymentTime) : 'N/A'}
+                </p>
               </div>
             </div>
 
@@ -118,6 +153,24 @@ export default function TransactionStatusPage() {
               <div className="p-3 bg-red-50 rounded-md">
                 <p className="text-sm text-red-800">Error: {status.errorMessage}</p>
               </div>
+            )}
+          </div>
+
+          {/* 🔗 New navigation buttons */}
+          <div className="flex gap-2 mt-6">
+            <button
+              onClick={() => navigate('/transactions')}
+              className="btn btn-secondary"
+            >
+              View All Transactions
+            </button>
+            {status.schoolId && (
+              <button
+                onClick={() => navigate(`/schools/${status.schoolId}/transactions`)}
+                className="btn btn-primary"
+              >
+                View School Transactions
+              </button>
             )}
           </div>
         </div>

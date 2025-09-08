@@ -75,6 +75,10 @@ function App() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/webhooks/logs" element={<WebhookLogsPage />} />
             <Route path="/system/health" element={<HealthPage />} />
+             
+
+  <Route path="/transactions/status/:orderId" element={<TransactionStatusPage />} />
+  <Route path="/schools/:schoolId/transactions" element={<TransactionsBySchoolPage />} />
           </Route>
 
           {/* Redirect */}

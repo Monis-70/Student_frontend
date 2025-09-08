@@ -28,6 +28,10 @@ export default function CreatePaymentPage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
+  const handlePaymentSuccess = (orderId: string, schoolId: string) => {
+  // ✅ Redirect directly to status page
+  navigate(`/transactions/status/${orderId}`, { replace: true });
+};
   const {
     register,
     handleSubmit,
