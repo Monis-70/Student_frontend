@@ -9,22 +9,22 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 // Auth Pages
 import LoginPage from './Pages/Auth/LoginPage';
-import SignupPage from './pages/auth/SignupPage';
-import ProfilePage from './pages/auth/ProfilePage';
+import SignupPage from './Pages/Auth/SignupPage';
+import ProfilePage from './Pages/Auth/ProfilePage';
 
 // Dashboard Pages
-import DashboardPage from './pages/dashboard/DashboardPage';
-import CreatePaymentPage from './pages/payments/CreatePaymentPage';
-import PaymentStatusPage from './pages/payments/PaymentStatusPage';
-import TransactionsPage from './pages/transactions/TransactionsPage';
-import TransactionsBySchoolPage from './pages/transactions/TransactionsBySchoolPage';
-import TransactionStatusPage from './pages/transactions/TransactionStatusPage';
-import AnalyticsPage from './pages/analytics/AnalyticsPage';
-import WebhookLogsPage from './pages/webhooks/WebhookLogsPage';
-import HealthPage from './pages/system/HealthPage';
+import DashboardPage from './Pages/dashboard/DashboardPage';
+import CreatePaymentPage from './Pages/Payments/CreatePaymentPage';
+import PaymentStatusPage from './Pages/Payments/PaymentStatusPage';
+import TransactionsPage from './Pages/transactions/TransactionsPage';
+import TransactionsBySchoolPage from './Pages/transactions/TransactionsBySchoolPage';
+import TransactionStatusPage from './Pages/transactions/TransactionStatusPage';
+import AnalyticsPage from './Pages/analytics/AnalyticsPage';
+import WebhookLogsPage from './Pages/webhooks/WebhookLogsPage';
+import HealthPage from './Pages/System/HealthPage';
 
 // Protected Route Component
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './Components/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
