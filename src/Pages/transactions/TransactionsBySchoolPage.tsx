@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '../../lib/api-client';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency, formatDate } from '../../lib/utils.js';
 
 export default function TransactionsBySchoolPage() {
   const { schoolId } = useParams();

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, AlertCircle } from 'lucide-react';
-import apiClient from '../../lib/api-client';
-import { formatDate } from '../../lib/utils';
-import toast from 'react-hot-toast';
+import apiClient from '../../lib/api-client.js';
+import { formatDate } from '../../lib/utils.js';
+
+import { toast } from 'react-hot-toast';
+
 
 export default function WebhookLogsPage() {
   const [filters, setFilters] = useState({

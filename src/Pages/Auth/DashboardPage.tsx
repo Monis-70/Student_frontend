@@ -8,8 +8,8 @@ import {
   ArrowRight,
   DollarSign,
 } from 'lucide-react';
-import apiClient from '../../lib/api-client';
-import { formatCurrency } from '../../lib/utils';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency } from '../../lib/utils.js';
 
 export default function DashboardPage() {
   const { data: analytics } = useQuery({

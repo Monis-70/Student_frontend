@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { User, Mail, Shield } from 'lucide-react';
-import apiClient from '../../lib/api-client';
+import apiClient from '../../lib/api-client.js';
 
 export default function ProfilePage() {
   const { data: profile, isLoading } = useQuery({

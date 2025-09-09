@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Filter, RefreshCw } from 'lucide-react';
-import DatePicker from 'react-datepicker';
-import apiClient from '../../lib/api-client';
-import { formatCurrency, formatDate } from '../../lib/utils';
-import toast from 'react-hot-toast';
+import { DatePicker } from 'react-datepicker';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency, formatDate } from '../../lib/utils.js';
+import { toast } from 'react-hot-toast';
 
 export default function TransactionsPage() {
   const [page, setPage] = useState(1);

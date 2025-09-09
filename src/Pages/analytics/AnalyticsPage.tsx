@@ -14,8 +14,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import apiClient from '../../lib/api-client';
-import { formatCurrency } from '../../lib/utils';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency } from '../../lib/utils.js';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 

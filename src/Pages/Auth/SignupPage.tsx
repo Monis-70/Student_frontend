@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, User, UserPlus } from 'lucide-react';
-import apiClient from '../../lib/api-client';
-import toast from 'react-hot-toast';
+import apiClient from '../../lib/api-client.js';
+import { toast } from 'react-hot-toast';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),

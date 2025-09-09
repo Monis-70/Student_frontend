@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 /// <reference types="vite/client" />
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -107,16 +108,47 @@ class ApiClient {
 
   // Payment endpoints
 async createPayment(data: any) {
-  console.log('Sending payment data:', data);
-  
-  const response = await this.client.post('/payments/create-payment', data);
+  // deep clone so original `data` is never mutated
+  const payload = JSON.parse(JSON.stringify(data || {}));
 
-  return {
-    ...response.data,
-    orderId: response.data.collect_request_id || response.data.orderId,
-    paymentUrl: response.data.Collect_request_url || response.data.paymentUrl,
-    success: true,
-  };
+  // If you previously injected collect_id, remove it BEFORE sending
+  if ('collect_id' in payload) {
+    delete payload.collect_id;
+  }
+
+  // (Optional) If you still want a client-only collect id for debugging,
+  // generate it here but DON'T include it in payload.
+  // const clientCollectId = uuidv4();
+  // localStorage.setItem(`__client_collect_${clientCollectId}`, JSON.stringify({ clientCollectId, payload }));
+
+  console.log('Sending payment payload (server-bound) keys:', Object.keys(payload));
+
+  try {
+    const response = await this.client.post('/payments/create-payment', payload);
+
+    const normalized = {
+      ...response.data,
+      orderId: response.data.collect_request_id || response.data.orderId || response.data.order_id,
+      paymentUrl: response.data.collect_request_url || response.data.paymentUrl || response.data.Collect_request_url,
+      success: response.data.success ?? true,
+    };
+
+    // do not expose backend's internal ids if you want
+    if ('collect_id' in normalized) delete normalized.collect_id;
+    if ('collect_request_id' in normalized) delete normalized.collect_request_id;
+
+    return normalized;
+  } catch (error: any) {
+    console.error('CreatePayment API error:', error?.response?.data || error.message);
+    // Extract readable message for UI
+    const resp = error?.response?.data;
+    let userMessage = 'Failed to create payment';
+    if (resp) {
+      if (Array.isArray(resp.message)) userMessage = resp.message.join(' | ');
+      else if (typeof resp.message === 'string') userMessage = resp.message;
+    }
+    throw new Error(userMessage);
+  }
 }
 
 

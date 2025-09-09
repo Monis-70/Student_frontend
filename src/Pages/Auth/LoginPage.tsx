@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, LogIn } from 'lucide-react';
-import apiClient from '../../lib/api-client';
-import toast from 'react-hot-toast';
+import apiClient from '../../lib/api-client.js';
+import { toast } from 'react-hot-toast';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),

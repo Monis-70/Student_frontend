@@ -15,9 +15,9 @@ import {
   Heart,
   Search,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
-import apiClient from '../lib/api-client';
-import toast from 'react-hot-toast';
+import { cn } from '../lib/utils.js';
+import apiClient from '../lib/api-client.js';
+import { toast } from 'react-hot-toast';
 
 interface DashboardLayoutProps {
   darkMode: boolean;

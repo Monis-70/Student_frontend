@@ -1,9 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
-import toast from 'react-hot-toast';
-import apiClient from '../../lib/api-client';
-import { formatCurrency, formatDate } from '../../lib/utils';
+import { toast} from 'react-hot-toast';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency, formatDate } from '../../lib/utils.js';
 
 // ✅ Strongly typed payment status response
 interface PaymentStatus {

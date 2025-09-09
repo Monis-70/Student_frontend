@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, CheckCircle, XCircle, Clock } from 'lucide-react';
-import apiClient from '../../lib/api-client';
-import { formatCurrency, formatDate } from '../../lib/utils';
-import toast from 'react-hot-toast';
+import apiClient from '../../lib/api-client.js';
+import { formatCurrency, formatDate } from '../../lib/utils.js';
+import   {toast } from 'react-hot-toast';
 
 // ✅ Transaction status response type
 interface StudentInfo {

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Database, Server, Clock } from 'lucide-react';
-import apiClient from '../../lib/api-client';
+import apiClient from '../../lib/api-client.js';
 
 export default function HealthPage() {
   const { data, isLoading, error } = useQuery({
