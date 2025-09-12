@@ -1,13 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM"],
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
+
+    // 🔥 Switch back to normal Node-style resolution
     "module": "esnext",
     "moduleResolution": "node",
+
     "resolveJsonModule": true,
-    "isolatedModules": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,

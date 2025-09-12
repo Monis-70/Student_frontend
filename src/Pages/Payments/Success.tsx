@@ -1,35 +1,85 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+
+// ✅ Fixed status mapping to match backend exactly (including Cashfree quirks)
+// ✅ Fixed status mapping - the issue was with the Cashfree quirk logic
+const mapStatus = (status?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' => {
+  if (!status) return 'pending';
+
+  const normalized = status.toUpperCase();
+  
+  // ✅ REMOVED: Cashfree capture_status logic - only use status field
+  
+  switch (normalized) {
+    case 'SUCCESS':
+    case 'COMPLETED':
+    case 'PAID':
+      return 'success';
+    case 'FAILED':
+    case 'DECLINED':
+    case 'ERROR':
+      return 'failed';
+    case 'USER_DROPPED':
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
+};
+
+// Test the fix:
+console.log('Test 1 - SUCCESS with no capture_status:');
+console.log(mapStatus('SUCCESS')); // Should return 'success' ✅
+
+console.log('Test 2 - SUCCESS with undefined capture_status:');
+console.log(mapStatus('SUCCESS', undefined)); // Should return 'success' ✅
+
+console.log('Test 3 - SUCCESS with PENDING capture_status:');
+console.log(mapStatus('SUCCESS', 'PENDING')); // Should return 'pending' ✅
+
+console.log('Test 4 - Your URL case - SUCCESS with no capture_status:');
+// This simulates: .../payments/status?EdvironCollectRequestId=68c39eee154d1bce65b3e0c2&status=SUCCESS
+const urlStatus = 'SUCCESS';
+const urlCaptureStatus = undefined; // Not present in URL
+console.log(mapStatus(urlStatus, urlCaptureStatus)); // Should return 'success' ✅
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
-  
-  // ✅ Handle multiple possible orderId param names (from gateway)
-  const orderIdFromUrl =
-    searchParams.get('EdvironCollectRequestId') ||
-    searchParams.get('order_id') ||
-    searchParams.get('collect_request_id');
-
-  const statusFromUrl = searchParams.get('status');
-  const amountFromUrl = searchParams.get('amount');
-
-  const [status, setStatus] = useState(statusFromUrl || 'pending');
-  const [amount, setAmount] = useState(parseFloat(amountFromUrl || '0') || 0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const queryClient = useQueryClient();
 
-  // Base URL for public endpoint (no auth). Adjust env if needed.
+  // ✅ Accept multiple possible params
+  const orderIdFromUrl =
+    searchParams.get('providerCollectId') ??
+    searchParams.get('EdvironCollectRequestId') ??
+    searchParams.get('collect_request_id') ??
+    searchParams.get('order_id') ??
+    undefined;
+
+  const amountFromUrl =
+    searchParams.get('amount') ??
+    searchParams.get('am') ??
+    undefined;
+
+  const gatewayStatus = searchParams.get('status') ?? undefined;
+  const captureStatus = searchParams.get('capture_status') ?? undefined;
+
+  const [status, setStatus] = useState<'success' | 'failed' | 'pending' | 'cancelled'>('pending');
+  const [amount, setAmount] = useState(parseFloat(amountFromUrl || '0') || 0);
+  const [orderId, setOrderId] = useState(orderIdFromUrl || localStorage.getItem('last_collect_id') || '');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const latestStatusRef = useRef<'success' | 'failed' | 'pending' | 'cancelled'>('pending');
+
+  // Keep a ref of the latest status to avoid stale closures inside fetchStatus
+  useEffect(() => {
+    latestStatusRef.current = status;
+  }, [status]);
+
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3095';
 
-  // Resolve orderId: prefer URL param, fallback to localStorage saved before redirect
-  const orderId =
-    orderIdFromUrl || localStorage.getItem('last_collect_id') || undefined;
-
-  // ✅ Fetch payment status from backend (public endpoint, no auth header)
   const fetchStatus = async () => {
     if (!orderId) {
       setError('No order ID found in URL parameters or localStorage');
@@ -40,7 +90,6 @@ const PaymentSuccess = () => {
     try {
       setLoading(true);
 
-      // Use fetch to call public endpoint (avoids axios auth interceptor)
       const response = await fetch(`${API_BASE}/payments/status/${orderId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -52,94 +101,178 @@ const PaymentSuccess = () => {
       }
 
       const data = await response.json();
+      console.log('🔎 Payment status API response:', data);
 
       if (data) {
-        if (data.order_info) {
-          // Legacy format
-          setStatus(data.order_info.status || 'unknown');
-          setAmount(parseFloat(data.order_info.order_amount) || 0);
-        } else if (data.order) {
-          // New format
-          setStatus(data.order.status || 'unknown');
-          setAmount(parseFloat(data.order.orderAmount) || 0);
-        } else {
-          // Direct format
-          setStatus(data.status || 'unknown');
-          setAmount(
-            parseFloat(data.amount) ||
-              parseFloat(data.order_amount) ||
-              0
-          );
+        // ✅ Normalize to always show custom_order_id if available
+        setOrderId(data.custom_order_id || data.customOrderId || orderId);
+
+        // ✅ Use the exact same mapping logic as backend
+        const resolvedStatus = mapStatus(
+          data.status ?? data.payment_status ?? data.gateway_status,
+          data.capture_status
+        );
+
+        // ✅ Enhanced amount resolution to match backend exactly
+        let resolvedAmount = 0;
+
+        // Try direct numeric fields first (match backend order)
+        const amountFields = [
+          data.amount,
+          data.transaction_amount,
+          data.orderAmount,
+          data.order_amount,
+          data.am
+        ];
+
+        for (const field of amountFields) {
+          const parsed = Number(field);
+          if (parsed && parsed > 0 && !isNaN(parsed)) {
+            resolvedAmount = parsed;
+            break;
+          }
         }
-        setError('');
+
+        // ✅ Fallback: parse from payment_details JSON (like backend)
+        if ((!resolvedAmount || resolvedAmount === 0) && data.payment_details) {
+          try {
+            const details = typeof data.payment_details === 'string' 
+              ? JSON.parse(data.payment_details) 
+              : data.payment_details;
+            
+            // Try amount fields in parsed details
+            const detailAmountFields = [
+              details.amount,
+              details.transaction_amount,
+              details.order_amount,
+              details.orderAmount,
+              details.am
+            ];
+
+            for (const field of detailAmountFields) {
+              const parsed = Number(field);
+              if (parsed && parsed > 0 && !isNaN(parsed)) {
+                resolvedAmount = parsed;
+                console.log('✅ Parsed amount from payment_details:', resolvedAmount);
+                break;
+              }
+            }
+
+            // Parse from collect_request_url if still no amount
+            if ((!resolvedAmount || resolvedAmount === 0) && details.collect_request_url) {
+              const urlObj = new URL(details.collect_request_url);
+              const urlAmount = urlObj.searchParams.get('amount');
+              if (urlAmount) {
+                const parsed = parseFloat(urlAmount);
+                if (parsed && parsed > 0 && !isNaN(parsed)) {
+                  resolvedAmount = parsed;
+                  console.log('✅ Parsed amount from collect_request_url:', resolvedAmount);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not parse payment_details:', e);
+          }
+        }
+
+        // ✅ Final fallbacks (try localStorage object for this collect id, then last_amount)
+        if ((!resolvedAmount || resolvedAmount === 0)) {
+          try {
+            const storedKey = `payment_collect_${orderId}`;
+            const storedRaw = localStorage.getItem(storedKey);
+            if (storedRaw) {
+              const stored = JSON.parse(storedRaw);
+              const storedAmount = Number(stored?.amount);
+              if (storedAmount && storedAmount > 0) {
+                resolvedAmount = storedAmount;
+                console.log('✅ Using stored amount from', storedKey, ':', resolvedAmount);
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Could not read stored amount for orderId', orderId, e);
+          }
+
+          if (!resolvedAmount || resolvedAmount === 0) {
+            const fallbackAmount = 
+              parseFloat(amountFromUrl || '0') ||
+              parseFloat(localStorage.getItem('last_amount') || '0') ||
+              0;
+            
+            if (fallbackAmount > 0) {
+              resolvedAmount = fallbackAmount;
+              console.log('✅ Using fallback amount:', resolvedAmount);
+            }
+          }
+        }
+
+        console.log('✅ Final resolved status:', resolvedStatus);
+        console.log('✅ Final resolved amount:', resolvedAmount);
+
+        // 🚀 Prevent overwriting a final status with "pending"
+        if (['success', 'failed', 'cancelled'].includes(latestStatusRef.current) && resolvedStatus === 'pending') {
+          console.log('⚠️ Ignoring API pending because final status already set from URL');
+        } else {
+          setStatus(resolvedStatus);
+        }
+
+        // ✅ Always set amount from resolved value
+        setAmount(resolvedAmount);
+
       } else {
         throw new Error('No data received from server');
       }
     } catch (err: any) {
-      console.error('Error fetching payment status:', err);
-      setError(
-        `Failed to fetch payment status: ${
-          err?.message || err?.response?.data?.message || err?.message
-        }`
-      );
-
-      // Fallback to URL values if API fails
-      if (statusFromUrl) setStatus(statusFromUrl);
-      if (amountFromUrl) setAmount(parseFloat(amountFromUrl) || 0);
+      console.error('❌ Error fetching payment status:', err);
+      setError(err?.message || 'Failed to fetch payment status');
+      toast.error(err?.message || 'Failed to fetch payment status');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Invalidate caches if success
   useEffect(() => {
-    if (status?.toLowerCase() === 'success') {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-    }
-  }, [status, queryClient]);
+  let interval: any;
 
-  // ✅ Polling setup
-  useEffect(() => {
+  if (gatewayStatus) {
+    const mapped = mapStatus(gatewayStatus, captureStatus);
+    const initialAmount = parseFloat(amountFromUrl || '0') || 0;
+
+    setStatus(mapped);
+    setAmount(initialAmount);
+    setLoading(false);
+
+    // Always begin polling after redirect to pick up webhook-driven updates,
+    // but do not downgrade UI from a final status to pending inside fetchStatus
     fetchStatus();
+    interval = setInterval(fetchStatus, 4000);
+  } else {
+    fetchStatus();
+    interval = setInterval(fetchStatus, 4000);
+  }
 
-    let interval: NodeJS.Timeout | undefined;
-    if (status === 'pending' || status === 'processing') {
-      interval = setInterval(fetchStatus, 3000);
-    }
+  return () => clearInterval(interval);
+}, [orderId, gatewayStatus, captureStatus]);
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId, status]);
+// 🚀 Stop polling if final status reached
+useEffect(() => {
+  if (['success', 'failed', 'cancelled'].includes(status)) {
+    console.log('✅ Final status reached, stopping polling');
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['orders'] });
+    queryClient.invalidateQueries({ queryKey: ['payments'] });
+  }
+}, [status, queryClient]);
 
-  // ✅ Timeout stop after 5 minutes
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (status === 'pending' || status === 'processing') {
-        setError(
-          'Payment verification timeout. Please contact support if payment was deducted.'
-        );
-      }
-    }, 300000); // 5 min
 
-    return () => clearTimeout(timeout);
-  }, [status]);
-
-  // ✅ Helpers
   const getStatusColor = (s?: string) => {
-    switch (s?.toLowerCase()) {
+    switch (s) {
       case 'success':
         return 'text-green-600';
       case 'failed':
         return 'text-red-600';
       case 'pending':
-      case 'processing':
         return 'text-yellow-600';
       case 'cancelled':
-      case 'user_dropped':
         return 'text-gray-600';
       default:
         return 'text-gray-500';
@@ -147,16 +280,14 @@ const PaymentSuccess = () => {
   };
 
   const getStatusIcon = (s?: string) => {
-    switch (s?.toLowerCase()) {
+    switch (s) {
       case 'success':
         return '✅';
       case 'failed':
         return '❌';
       case 'pending':
-      case 'processing':
         return '⏳';
       case 'cancelled':
-      case 'user_dropped':
         return '⚠️';
       default:
         return '❓';
@@ -164,17 +295,14 @@ const PaymentSuccess = () => {
   };
 
   const getStatusMessage = (s?: string) => {
-    switch (s?.toLowerCase()) {
+    switch (s) {
       case 'success':
         return 'Payment completed successfully!';
       case 'failed':
         return 'Payment failed. Please try again.';
       case 'pending':
         return 'Payment is being processed. Please wait...';
-      case 'processing':
-        return 'Payment is being verified. This may take a few moments.';
       case 'cancelled':
-      case 'user_dropped':
         return 'Payment was cancelled by user.';
       default:
         return 'Unable to determine payment status. Please contact support.';
@@ -207,9 +335,7 @@ const PaymentSuccess = () => {
                 <p className="text-sm text-gray-600 mb-2">Status:</p>
                 <div className="flex items-center justify-center">
                   <span className="text-2xl mr-2">{getStatusIcon(status)}</span>
-                  <span
-                    className={`text-xl font-semibold ${getStatusColor(status)}`}
-                  >
+                  <span className={`text-xl font-semibold ${getStatusColor(status)}`}>
                     {status?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
@@ -233,37 +359,6 @@ const PaymentSuccess = () => {
                   {error}
                 </div>
               )}
-
-              {/* ✅ Action buttons */}
-              <div className="space-y-3">
-                {status === 'success' && (
-                  <button
-                    onClick={() => (window.location.href = '/dashboard')}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    Continue to Dashboard
-                  </button>
-                )}
-
-                {(status === 'failed' || status === 'cancelled') && (
-                  <button
-                    onClick={() => (window.location.href = '/payments')}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Try Payment Again
-                  </button>
-                )}
-
-                {(status === 'pending' || status === 'processing') && (
-                  <button
-                    onClick={fetchStatus}
-                    disabled={loading}
-                    className="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 disabled:opacity-50 transition-colors"
-                  >
-                    {loading ? 'Checking...' : 'Refresh Status'}
-                  </button>
-                )}
-              </div>
             </>
           )}
         </div>

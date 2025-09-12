@@ -1,6 +1,22 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+export function mapStatus(apiStatus?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
+  if (!apiStatus) return 'pending';
+
+  const normalized = apiStatus.toUpperCase();
+  const capture = captureStatus?.toUpperCase();
+
+  if (normalized === 'SUCCESS') return 'success';
+  if (normalized === 'FAILED' || normalized === 'ERROR' || normalized === 'DECLINED') return 'failed';
+  if (normalized === 'CANCELLED' || normalized === 'USER_DROPPED' || normalized === 'CANCELED') return 'cancelled';
+
+  // fallback if API is unclear
+  if (capture === 'PENDING') return 'pending';
+
+  return 'pending';
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

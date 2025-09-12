@@ -15,15 +15,15 @@ import ProfilePage from './Pages/Auth/ProfilePage';
 // Dashboard Pages
 import DashboardPage from './Pages/dashboard/DashboardPage';
 import CreatePaymentPage from './Pages/Payments/CreatePaymentPage';
-import PaymentStatusPage from './Pages/Payments/PaymentStatusPage';
+import PaymentStatusPage from './Pages/Payments/PaymentStatusPage'; // ✅ for orderId based tracking
+import PaymentSuccess from './Pages/Payments/Success'; // ✅ for Edviron success redirects
+import PaymentFailureRedirect from './Pages/Payments/PaymentFailureRedirect'; // ✅ new redirect catcher
 import TransactionsPage from './Pages/transactions/TransactionsPage';
 import TransactionsBySchoolPage from './Pages/transactions/TransactionsBySchoolPage';
 import TransactionStatusPage from './Pages/transactions/TransactionStatusPage';
 import AnalyticsPage from './Pages/analytics/AnalyticsPage';
 import WebhookLogsPage from './Pages/webhooks/WebhookLogsPage';
 import HealthPage from './Pages/System/HealthPage';
-import PaymentSuccess from './Pages/Payments/Success';
-
 
 // Protected Route Component
 import ProtectedRoute from './Components/ProtectedRoute';
@@ -53,32 +53,46 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Auth Routes */}
+          {/* 🔑 Auth Routes */}
           <Route element={<AuthLayout />}>
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/signup" element={<SignupPage />} />
           </Route>
 
-          {/* Protected Dashboard Routes */}
+          {/* 🔑 Protected Dashboard Routes */}
           <Route
             element={
               <ProtectedRoute>
-                <DashboardLayout darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+                <DashboardLayout
+                  darkMode={darkMode}
+                  toggleDarkMode={toggleDarkMode}
+                />
               </ProtectedRoute>
             }
           >
-    <Route path="/" element={<DashboardPage />} />
-    <Route path="/profile" element={<ProfilePage />} />
-    <Route path="/payments/create" element={<CreatePaymentPage />} />
-    
-    {/* ✅ Payment Success via query params */}
-    <Route path="/payments/status" element={<PaymentSuccess />} />
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/payments/create" element={<CreatePaymentPage />} />
 
-    <Route path="/transactions" element={<TransactionsPage />} />
-    <Route path="/transactions/school/:schoolId" element={<TransactionsBySchoolPage />} />
-    <Route path="/analytics" element={<AnalyticsPage />} />
-    <Route path="/webhooks/logs" element={<WebhookLogsPage />} />
-    <Route path="/system/health" element={<HealthPage />} />
+            {/* ✅ Payment status routes */}
+            <Route path="/payments/status" element={<PaymentSuccess />} />
+            <Route path="/payments/status/:orderId" element={<PaymentStatusPage />} />
+
+            {/* ✅ Redirect handler for Edviron "payment-failure" */}
+            <Route path="/payment-failure" element={<PaymentFailureRedirect />} />
+
+            <Route path="/transactions" element={<TransactionsPage />} />
+            <Route
+              path="/transactions/school/:schoolId"
+              element={<TransactionsBySchoolPage />}
+            />
+            <Route
+              path="/transactions/status/:orderId"
+              element={<TransactionStatusPage />}
+            />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/webhooks/logs" element={<WebhookLogsPage />} />
+            <Route path="/system/health" element={<HealthPage />} />
           </Route>
 
           {/* Redirect */}

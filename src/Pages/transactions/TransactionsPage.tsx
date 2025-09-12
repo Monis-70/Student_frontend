@@ -6,6 +6,25 @@ import apiClient from '../../lib/api-client.js';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
 import { toast } from 'react-hot-toast';
 
+// ✅ helper to normalize status - matches your backend exactly
+function mapStatus(apiStatus?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
+  if (!apiStatus) return 'pending';
+
+  const normalized = apiStatus.toUpperCase();
+  const capture = captureStatus?.toUpperCase();
+
+  // ✅ Cashfree quirk - matches backend logic
+  if (normalized === 'SUCCESS' && capture === 'PENDING') {
+    return 'pending';
+  }
+
+  if (['SUCCESS', 'COMPLETED', 'PAID'].includes(normalized)) return 'success';
+  if (['FAILED', 'DECLINED', 'ERROR'].includes(normalized)) return 'failed';
+  if (['CANCELLED', 'USER_DROPPED', 'CANCELED'].includes(normalized)) return 'cancelled';
+
+  return 'pending';
+}
+
 export default function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
@@ -18,15 +37,17 @@ export default function TransactionsPage() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['transactions', page, filters],
-    queryFn: () => apiClient.getTransactions({
-      page,
-      limit: 10,
-      status: filters.status || undefined,
-      gateway: filters.gateway || undefined,
-      startDate: filters.startDate?.toISOString(),
-      endDate: filters.endDate?.toISOString(),
-      search: filters.search || undefined,
-    }),
+    queryFn: () =>
+      apiClient.getTransactions({
+        page,
+        limit: 10,
+        status: filters.status || undefined,
+        gateway: filters.gateway || undefined,
+        startDate: filters.startDate?.toISOString(),
+        endDate: filters.endDate?.toISOString(),
+        search: filters.search || undefined,
+      }),
+    refetchInterval: 5000, // ✅ auto-refresh every 5s
   });
 
   const handleExport = async (format: string) => {
@@ -35,6 +56,7 @@ export default function TransactionsPage() {
       toast.success(`Exported as ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Export error:', error);
+      toast.error('Export failed');
     }
   };
 
@@ -85,6 +107,7 @@ export default function TransactionsPage() {
             <option value="success">Success</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <select
@@ -97,6 +120,8 @@ export default function TransactionsPage() {
             <option value="Razorpay">Razorpay</option>
             <option value="Paytm">Paytm</option>
             <option value="GooglePay">Google Pay</option>
+            <option value="Cashfree">Cashfree</option>
+            <option value="edviron">Edviron</option>
           </select>
 
           <DatePicker
@@ -122,20 +147,28 @@ export default function TransactionsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="card">
             <p className="text-sm text-gray-600">Total Amount</p>
-            <p className="text-xl font-bold">{formatCurrency(data.summary.totalAmount)}</p>
+            <p className="text-xl font-bold">{formatCurrency(data.summary.totalAmount || 0)}</p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-600">Success</p>
-            <p className="text-xl font-bold text-green-600">{data.summary.successCount}</p>
+            <p className="text-xl font-bold text-green-600">{data.summary.successCount || 0}</p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-600">Failed</p>
-            <p className="text-xl font-bold text-red-600">{data.summary.failedCount}</p>
+            <p className="text-xl font-bold text-red-600">{data.summary.failedCount || 0}</p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-600">Pending</p>
-            <p className="text-xl font-bold text-yellow-600">{data.summary.pendingCount}</p>
+            <p className="text-xl font-bold text-yellow-600">{data.summary.pendingCount || 0}</p>
           </div>
+        </div>
+      )}
+
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 p-4 rounded text-xs">
+          <strong>Debug - API Response:</strong>
+          <pre>{JSON.stringify(data?.data?.slice(0, 2), null, 2)}</pre>
         </div>
       )}
 
@@ -145,12 +178,24 @@ export default function TransactionsPage() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gateway</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Order ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Student
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Amount
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Gateway
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Date
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -167,33 +212,73 @@ export default function TransactionsPage() {
                   </td>
                 </tr>
               ) : (
-                data?.data?.map((tx: any) => (
-                // Fixed section of TransactionsPage.tsx - replace the table row
-<tr key={tx.collect_id} className="hover:bg-gray-50">
-  <td className="px-4 py-3 text-sm">{tx.custom_order_id?.slice(0, 15)}...</td>
-  <td className="px-4 py-3 text-sm">
-    <div>
-      <p className="font-medium">{tx.student_info?.name}</p>
-      <p className="text-xs text-gray-500">{tx.student_info?.email}</p>
-    </div>
-  </td>
-  <td className="px-4 py-3 text-sm font-medium">{formatCurrency(tx.order_amount)}</td>
-  <td className="px-4 py-3">
-    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-      tx.status === 'success' ? 'bg-green-100 text-green-800' :
-      tx.status === 'failed' ? 'bg-red-100 text-red-800' :
-      'bg-yellow-100 text-yellow-800'
-    }`}>
-      {tx.status}
-    </span>
-  </td>
-  <td className="px-4 py-3 text-sm">{tx.gateway}</td>
-  <td className="px-4 py-3 text-sm text-gray-500">
-    {/* ✅ Safe date formatting with fallback */}
-    {tx.created_at ? formatDate(tx.created_at) : 'N/A'}
-  </td>
-</tr>
-                ))
+                data?.data?.map((tx: any) => {
+                  // ✅ Use backend's normalized status directly (matches your backend mapGatewayStatus)
+                  const status = mapStatus(tx.status ?? tx.gateway_status);
+
+                  // ✅ Extract amount safely - matches your backend field structure
+                  const safeAmount = Number(
+                    tx.order_amount ??
+                    tx.transaction_amount ??
+                    tx.amount ??
+                    tx.status_info?.order_amount ??
+                    tx.status_info?.transaction_amount ??
+                    0
+                  );
+
+                  // ✅ Safe date handling
+                  const createdAt = tx.created_at ?? tx.createdAt ?? tx.createdAt ?? null;
+
+                  return (
+                    <tr key={tx.collect_id || tx.custom_order_id || tx._id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm">
+                        <span title={tx.custom_order_id}>
+                          {tx.custom_order_id ? `${tx.custom_order_id.slice(0, 15)}...` : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div>
+                          <p className="font-medium">{tx.student_info?.name || 'Unknown'}</p>
+                          <p className="text-xs text-gray-500">{tx.student_info?.email || 'N/A'}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        {formatCurrency(safeAmount)}
+                        {/* Show debug info for amount in dev */}
+                        {process.env.NODE_ENV === 'development' && safeAmount === 0 && (
+                          <div className="text-xs text-red-500">
+                            Debug: order_amount={tx.order_amount}, transaction_amount={tx.transaction_amount}, amount={tx.amount}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            status === 'success'
+                              ? 'bg-green-100 text-green-800'
+                              : status === 'failed'
+                              ? 'bg-red-100 text-red-800'
+                              : status === 'cancelled'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {status.toUpperCase()}
+                        </span>
+                        {/* Show debug info for status in dev */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="text-xs text-gray-500">
+                            Raw: {tx.status || tx.gateway_status || 'none'}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm">{tx.gateway || tx.gateway_name || 'N/A'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {createdAt ? formatDate(createdAt) : 'N/A'}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -203,7 +288,8 @@ export default function TransactionsPage() {
         {data?.pagination && (
           <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between">
             <p className="text-sm text-gray-700">
-              Showing {((page - 1) * 10) + 1} to {Math.min(page * 10, data.pagination.total)} of {data.pagination.total} results
+              Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, data.pagination.total)} of{' '}
+              {data.pagination.total} results
             </p>
             <div className="flex gap-2">
               <button
