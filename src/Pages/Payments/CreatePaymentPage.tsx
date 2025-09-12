@@ -5,10 +5,10 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CreditCard, User, Mail, Phone, AlertCircle } from 'lucide-react';
 import apiClient from '../../lib/api-client.js';
-import { toast }  from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 const paymentSchema = z.object({
-  amount: z.string().min(1, 'Amount is required'), // keeping as string to match your logic
+  amount: z.string().min(1, 'Amount is required'),
   studentInfo: z.object({
     name: z.string().min(2, 'Name is required'),
     id: z.string().min(1, 'Student ID is required'),
@@ -29,9 +29,9 @@ export default function CreatePaymentPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePaymentSuccess = (orderId: string, schoolId: string) => {
-  // ✅ Redirect directly to status page
-  navigate(`/transactions/status/${orderId}`, { replace: true });
-};
+    navigate(`/transactions/status/${orderId}`, { replace: true });
+  };
+
   const {
     register,
     handleSubmit,
@@ -45,88 +45,107 @@ export default function CreatePaymentPage() {
     },
   });
 
-// Updated onSubmit function with debugging
-const onSubmit = async (data: PaymentFormData) => {
-  setIsLoading(true);
-  try {
-    // build payload for backend (DO NOT include collect_id — backend rejects it)
-    const payload = {
-      amount: parseFloat(data.amount),
-      student_info: {
-        name: data.studentInfo.name,
-        id: data.studentInfo.id,
-        email: data.studentInfo.email,
-        ...(data.studentInfo.phone && { phone: data.studentInfo.phone }),
-        ...(data.studentInfo.class && { class: data.studentInfo.class }),
-        ...(data.studentInfo.section && { section: data.studentInfo.section }),
-      },
-      feeType: data.feeType,
-      gateway: data.gateway,
-      // collect_id intentionally omitted — server does not accept it on create-payment
-      returnUrl: `${window.location.origin}/payments/status`,
-      description: data.description ?? undefined,
-    };
+  const onSubmit = async (data: PaymentFormData) => {
+    setIsLoading(true);
+    try {
+      const numericAmount = Math.max(1, parseFloat(data.amount) || 0);
+      
+      const payload = {
+        amount: numericAmount,
+        student_info: {
+          name: data.studentInfo.name,
+          id: data.studentInfo.id,
+          email: data.studentInfo.email,
+          ...(data.studentInfo.phone && { phone: data.studentInfo.phone }),
+          ...(data.studentInfo.class && { class: data.studentInfo.class }),
+          ...(data.studentInfo.section && { section: data.studentInfo.section }),
+        },
+        feeType: data.feeType,
+        gateway: data.gateway,
+        returnUrl: `${window.location.origin}/payments/status`,
+        description: data.description ?? undefined,
+      };
 
-    console.log('Sending payment data:', payload);
+      console.log('Sending payment data:', payload);
 
-    // 4) call API (apiClient.createPayment now returns response.data)
-    const respData = await apiClient.createPayment(payload);
+      const respData = await apiClient.createPayment(payload);
+      console.log('Payment response data:', respData);
 
-    console.log('Payment response data:', respData);
+      if (respData?.success) {
+        toast.success('Payment initiated successfully!');
 
-    // 5) handle response (works with { success, paymentUrl } or similar)
-    if (respData?.success) {
-      toast.success('Payment initiated successfully!');
-      const paymentUrl = respData.paymentUrl ?? respData.redirectUrl ?? respData.url ?? null;
-      if (paymentUrl) {
-        // ← SAVE SERVER ORDER ID BEFORE REDIRECT
-        const serverOrderId = respData.orderId || respData.order_id || respData.collect_request_id;
-        if (serverOrderId) {
-          localStorage.setItem('last_collect_id', serverOrderId);
+        // ✅ Backend returns: payment_url (not paymentUrl), collect_request_id, order_id
+        const paymentUrl = respData.payment_url || respData.paymentUrl;
+        const serverOrderId = respData.order_id; // This is the MongoDB _id
+        const providerCollectId = respData.collect_request_id; // This is the external provider ID
 
-          // optional: store small client-side meta for reference (uses server ID)
+        console.log('Payment response breakdown:', {
+          paymentUrl,
+          serverOrderId,
+          providerCollectId,
+        });
+
+        if (paymentUrl && (serverOrderId || providerCollectId)) {
+          // ✅ Store amount for fallback in status pages
+          localStorage.setItem('last_amount', String(numericAmount));
+          
+          // ✅ Store the provider collect ID as the primary reference for status checking
+          if (providerCollectId) {
+            localStorage.setItem('last_collect_id', providerCollectId);
+          }
+
           try {
-            const storageKey = `payment_collect_${serverOrderId}`;
+            // ✅ Use provider collect ID as the key for consistent lookup
+            const storageKey = `payment_collect_${providerCollectId || serverOrderId}`;
             const toStore = {
-              serverOrderId,
+              serverOrderId, // MongoDB _id
+              providerCollectId, // External provider ID (Edviron collect_request_id)
+              customOrderId: respData.custom_order_id || serverOrderId, // Internal custom ID
               studentId: data.studentInfo.id,
-              amount: payload.amount,
+              amount: numericAmount,
               feeType: data.feeType,
+              gateway: data.gateway,
               createdAt: new Date().toISOString(),
             };
             localStorage.setItem(storageKey, JSON.stringify(toStore));
+
             const listKey = 'payment_collect_list';
             const rawList = localStorage.getItem(listKey);
-            const list = rawList ? JSON.parse(rawList) as string[] : [];
+            const list = rawList ? (JSON.parse(rawList) as string[]) : [];
             list.unshift(storageKey);
             localStorage.setItem(listKey, JSON.stringify(list.slice(0, 20)));
+
+            console.log('Stored payment data in localStorage:', toStore);
           } catch (e) {
-            console.warn('Could not write serverOrderId to localStorage', e);
+            console.warn('Could not write payment data to localStorage', e);
           }
+
+          // ✅ Redirect to payment gateway
+          console.log('Redirecting to payment URL:', paymentUrl);
+          window.location.href = paymentUrl;
+        } else {
+          toast.error('Payment URL or Order ID missing from server.');
+          console.error('Missing data in response:', {
+            paymentUrl,
+            serverOrderId,
+            providerCollectId,
+            fullResponse: respData,
+          });
         }
-
-        // redirect user to payment gateway
-        window.location.href = paymentUrl;
       } else {
-        toast.error('Payment URL not received from server.');
-        console.error('No payment URL in response:', respData);
+        const msg = respData?.message || 'Failed to create payment';
+        toast.error(msg);
+        console.error('Payment API returned failure:', respData);
       }
-    } else {
-      // API returned success:false or missing fields
-      const msg = respData?.message || 'Failed to create payment';
-      toast.error(msg);
-      console.error('Payment API returned failure:', respData);
+    } catch (error: any) {
+      console.error('Payment network/error:', error);
+      const serverMsg =
+        error?.message || error?.response?.data?.message || 'Failed to create payment';
+      toast.error(serverMsg);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    console.error('Payment network/error:', error);
-    const serverMsg = error?.message || error?.response?.data?.message || 'Failed to create payment';
-    toast.error(serverMsg);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -172,7 +191,9 @@ const onSubmit = async (data: PaymentFormData) => {
                 />
               </div>
               {errors.studentInfo?.name && (
-                <p className="text-red-500 text-sm mt-1">{errors.studentInfo.name.message}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.studentInfo.name.message}
+                </p>
               )}
             </div>
 
@@ -196,12 +217,14 @@ const onSubmit = async (data: PaymentFormData) => {
                 />
               </div>
               {errors.studentInfo?.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.studentInfo.email.message}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.studentInfo.email.message}
+                </p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font medium mb-1">Phone</label>
+              <label className="block text-sm font-medium mb-1">Phone</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input {...register('studentInfo.phone')} className="input pl-10" placeholder="9876543210" />
@@ -256,6 +279,7 @@ const onSubmit = async (data: PaymentFormData) => {
             <div>
               <label className="block text-sm font-medium mb-1">Payment Gateway *</label>
               <select {...register('gateway')} className="input">
+                <option value="edviron">Edviron (Default)</option>
                 <option value="PhonePe">PhonePe</option>
                 <option value="Razorpay">Razorpay</option>
                 <option value="Paytm">Paytm</option>
