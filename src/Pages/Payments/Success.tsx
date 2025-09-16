@@ -2,49 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+// Relative path
+import { mapStatus } from '../../lib/utils';
 
 // ✅ Fixed status mapping to match backend exactly (including Cashfree quirks)
 // ✅ Fixed status mapping - the issue was with the Cashfree quirk logic
-const mapStatus = (status?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' => {
-  if (!status) return 'pending';
 
-  const normalized = status.toUpperCase();
-  
-  // ✅ REMOVED: Cashfree capture_status logic - only use status field
-  
-  switch (normalized) {
-    case 'SUCCESS':
-    case 'COMPLETED':
-    case 'PAID':
-      return 'success';
-    case 'FAILED':
-    case 'DECLINED':
-    case 'ERROR':
-      return 'failed';
-    case 'USER_DROPPED':
-    case 'CANCELLED':
-    case 'CANCELED':
-      return 'cancelled';
-    default:
-      return 'pending';
-  }
-};
 
 // Test the fix:
 console.log('Test 1 - SUCCESS with no capture_status:');
 console.log(mapStatus('SUCCESS')); // Should return 'success' ✅
 
-console.log('Test 2 - SUCCESS with undefined capture_status:');
-console.log(mapStatus('SUCCESS', undefined)); // Should return 'success' ✅
+// console.log('Test 2 - SUCCESS with undefined capture_status:');
+// console.log(mapStatus('SUCCESS', undefined)); // Should return 'success' ✅
 
-console.log('Test 3 - SUCCESS with PENDING capture_status:');
-console.log(mapStatus('SUCCESS', 'PENDING')); // Should return 'pending' ✅
+// console.log('Test 3 - SUCCESS with PENDING capture_status:');
+// console.log(mapStatus('SUCCESS', 'PENDING')); // Should return 'pending' ✅
 
-console.log('Test 4 - Your URL case - SUCCESS with no capture_status:');
-// This simulates: .../payments/status?EdvironCollectRequestId=68c39eee154d1bce65b3e0c2&status=SUCCESS
-const urlStatus = 'SUCCESS';
-const urlCaptureStatus = undefined; // Not present in URL
-console.log(mapStatus(urlStatus, urlCaptureStatus)); // Should return 'success' ✅
+// console.log('Test 4 - Your URL case - SUCCESS with no capture_status:');
+// // This simulates: .../payments/status?EdvironCollectRequestId=68c39eee154d1bce65b3e0c2&status=SUCCESS
+// const urlStatus = 'SUCCESS';
+// const urlCaptureStatus = undefined; // Not present in URL
+// console.log(mapStatus(urlStatus, urlCaptureStatus)); // Should return 'success' ✅
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -108,10 +87,7 @@ const PaymentSuccess = () => {
         setOrderId(data.custom_order_id || data.customOrderId || orderId);
 
         // ✅ Use the exact same mapping logic as backend
-        const resolvedStatus = mapStatus(
-          data.status ?? data.payment_status ?? data.gateway_status,
-          data.capture_status
-        );
+      const resolvedStatus = mapStatus(data.status ?? data.payment_status ?? data.gateway_status);
 
         // ✅ Enhanced amount resolution to match backend exactly
         let resolvedAmount = 0;
@@ -234,7 +210,8 @@ const PaymentSuccess = () => {
   let interval: any;
 
   if (gatewayStatus) {
-    const mapped = mapStatus(gatewayStatus, captureStatus);
+    const mapped = mapStatus(gatewayStatus);
+
     const initialAmount = parseFloat(amountFromUrl || '0') || 0;
 
     setStatus(mapped);

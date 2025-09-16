@@ -25,23 +25,7 @@ interface TransactionStatus {
 }
 
 // ✅ Normalize status - matches your backend mapGatewayStatus exactly
-function mapStatus(apiStatus?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
-  if (!apiStatus) return 'pending';
 
-  const normalized = apiStatus.toUpperCase();
-  const capture = captureStatus?.toUpperCase();
-
-  // ✅ Cashfree quirk - matches backend logic
-  if (normalized === 'SUCCESS' && capture === 'PENDING') {
-    return 'pending';
-  }
-
-  if (['SUCCESS', 'COMPLETED', 'PAID'].includes(normalized)) return 'success';
-  if (['FAILED', 'ERROR', 'DECLINED'].includes(normalized)) return 'failed';
-  if (['CANCELLED', 'USER_DROPPED', 'CANCELED'].includes(normalized)) return 'cancelled';
-
-  return 'pending';
-}
 
 export default function TransactionStatusPage() {
   const { orderId: paramOrderId } = useParams<{ orderId: string }>();
@@ -72,10 +56,9 @@ export default function TransactionStatusPage() {
       console.log('🔍 Raw backend response:', raw); // Debug logging
 
       // ✅ Use backend's normalized status directly (matches getTransactionStatus response)
-      const normalizedStatus = mapStatus(
-        raw.status ?? raw.payment_status ?? raw.gateway_status,
-        raw.capture_status
-      );
+      const normalizedStatus: 'success' | 'failed' | 'pending' | 'cancelled' =
+  raw.status || 'pending';
+
 
       // ✅ Extract amount matching your backend's getTransactionStatus structure
       const safeAmount = Number(

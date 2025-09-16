@@ -1,6 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { toast } from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { mapStatus } from './utils';  
+
 
 /// <reference types="vite/client" />
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -155,7 +157,8 @@ async createPayment(data: any) {
   async collectPaymentStatus(customOrderId: string) {
     const response = await this.client.get(`/payments/collect-payment/${customOrderId}`);
     return {
-      status: response.data.status?.toLowerCase() || 'pending',
+      status: mapStatus(response.data.status),
+
       amount: response.data.amount || 0,
       orderId: customOrderId,
       paymentMode: response.data.details?.payment_methods || 'N/A',
@@ -167,7 +170,8 @@ async createPayment(data: any) {
   async getPaymentStatus(customOrderId: string) {
     const response = await this.client.get(`/payments/status/${customOrderId}`);
     return {
-      status: response.data.status?.toLowerCase() || 'pending',
+      status: mapStatus(response.data.status),
+
       amount: response.data.amount || 0,
       orderId: customOrderId,
       paymentMode: response.data.details?.payment_methods || 'N/A',

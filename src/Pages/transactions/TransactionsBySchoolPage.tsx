@@ -4,17 +4,17 @@ import apiClient from '../../lib/api-client.js';
 import { formatCurrency } from '../../lib/utils.js';
 
 // ✅ Match backend's normalized status mapping exactly
-function mapStatus(apiStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
-  if (!apiStatus) return 'pending';
+// function mapStatus(apiStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
+//   if (!apiStatus) return 'pending';
   
-  const normalized = apiStatus.toLowerCase();
+//   const normalized = apiStatus.toLowerCase();
   
-  if (['success', 'completed', 'paid'].includes(normalized)) return 'success';
-  if (['failed', 'declined', 'error'].includes(normalized)) return 'failed';
-  if (['cancelled', 'canceled', 'user_dropped'].includes(normalized)) return 'cancelled';
+//   if (['success', 'completed', 'paid'].includes(normalized)) return 'success';
+//   if (['failed', 'declined', 'error'].includes(normalized)) return 'failed';
+//   if (['cancelled', 'canceled', 'user_dropped'].includes(normalized)) return 'cancelled';
   
-  return 'pending';
-}
+//   return 'pending';
+// }
 
 // ✅ Safely extract amount from various possible field locations
 function extractAmount(tx: any): number {
@@ -65,12 +65,12 @@ export default function TransactionsBySchoolPage() {
       <p className="text-gray-600">School ID: {schoolId}</p>
 
       {/* Debug info - remove in production */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* {process.env.NODE_ENV === 'development' && 
         <div className="bg-gray-100 p-4 rounded text-xs">
           <strong>Debug Info:</strong>
           <pre>{JSON.stringify(data, null, 2)}</pre>
         </div>
-      )}
+      )} */}
 
       {!data?.data || data.data.length === 0 ? (
         <div className="text-center py-8">
@@ -78,10 +78,12 @@ export default function TransactionsBySchoolPage() {
         </div>
       ) : (
         data.data.map((group: any) => (
-          <div key={`${group._id.date}-${group._id.status}`} className="card">
+          <div key={group._id.date} className="card">
+
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold">
-                {group._id.date} - Status: {group._id.status || 'Unknown'}
+                {group._id.date}
+
               </h3>
               <span className="text-sm text-gray-600">
                 {group.count} transactions - {formatCurrency(group.totalAmount || 0)}
@@ -89,9 +91,11 @@ export default function TransactionsBySchoolPage() {
             </div>
 
             <div className="space-y-2">
-              {group.transactions?.map((tx: any, index: number) => {
+              {(group.transactions || []).map((tx: any, index: number) => {
+
                 // ✅ Use backend's normalized status directly (no remapping needed)
-                const status = mapStatus(tx.status);
+                const status = tx.status || 'pending';
+
                 
                 // ✅ Extract amount safely
                 const safeAmount = extractAmount(tx);

@@ -100,24 +100,28 @@ export default function WebhookLogsPage() {
 
   const getOrderIdFromLog = (log: WebhookLog) => {
     // Try to extract order ID from various sources
-    return (
-      log.related_order_id ||
-      log.payload?.order_id ||
-      log.payload?.collect_request_id ||
-      log.payload?.data?.order_id ||
-      log.payload?.order_info?.order_id ||
-      log.response?.orderId ||
-      log.response?.customOrderId ||
-      'N/A'
-    );
+   return (
+  log.related_order_id ||
+  log.payload?.custom_order_id ||
+  log.payload?.order_id ||
+  log.payload?.collect_request_id ||
+  log.payload?.data?.order_id ||
+  log.payload?.order_info?.order_id ||
+  log.response?.custom_order_id ||
+  log.response?.orderId ||
+  'N/A'
+);
+
   };
 
   const getGatewayFromPayload = (payload: any) => {
-    if (payload?.data) return 'Cashfree';
-    if (payload?.gateway) return payload.gateway;
-    if (payload?.payment_gateway) return payload.payment_gateway;
-    return 'Unknown';
-  };
+  if (payload?.gateway_name) return payload.gateway_name;
+  if (payload?.gateway) return payload.gateway;
+  if (payload?.payment_gateway) return payload.payment_gateway;
+  if (payload?.data) return 'Cashfree'; // fallback for Cashfree payloads
+  return 'Unknown';
+};
+
 
   const openPayloadModal = (log: WebhookLog) => {
     setSelectedLog(log);
@@ -285,7 +289,8 @@ export default function WebhookLogsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(log.status)}`}>
-                          {log.status}
+                          {log.status.toUpperCase()}
+
                         </span>
                         {log.retry_count && log.retry_count > 0 && (
                           <span className="text-xs text-orange-600">

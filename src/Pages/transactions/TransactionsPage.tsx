@@ -7,23 +7,7 @@ import { formatCurrency, formatDate } from '../../lib/utils.js';
 import { toast } from 'react-hot-toast';
 
 // ✅ helper to normalize status - matches your backend exactly
-function mapStatus(apiStatus?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
-  if (!apiStatus) return 'pending';
 
-  const normalized = apiStatus.toUpperCase();
-  const capture = captureStatus?.toUpperCase();
-
-  // ✅ Cashfree quirk - matches backend logic
-  if (normalized === 'SUCCESS' && capture === 'PENDING') {
-    return 'pending';
-  }
-
-  if (['SUCCESS', 'COMPLETED', 'PAID'].includes(normalized)) return 'success';
-  if (['FAILED', 'DECLINED', 'ERROR'].includes(normalized)) return 'failed';
-  if (['CANCELLED', 'USER_DROPPED', 'CANCELED'].includes(normalized)) return 'cancelled';
-
-  return 'pending';
-}
 
 export default function TransactionsPage() {
   const [page, setPage] = useState(1);
@@ -164,13 +148,13 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
+  
+      {/* {process.env.NODE_ENV === 'development' && (
         <div className="bg-gray-100 p-4 rounded text-xs">
           <strong>Debug - API Response:</strong>
           <pre>{JSON.stringify(data?.data?.slice(0, 2), null, 2)}</pre>
         </div>
-      )}
+      )} */}
 
       {/* Table */}
       <div className="card overflow-hidden">
@@ -214,7 +198,8 @@ export default function TransactionsPage() {
               ) : (
                 data?.data?.map((tx: any) => {
                   // ✅ Use backend's normalized status directly (matches your backend mapGatewayStatus)
-                  const status = mapStatus(tx.status ?? tx.gateway_status);
+                  const status = tx.status || 'pending';
+
 
                   // ✅ Extract amount safely - matches your backend field structure
                   const safeAmount = Number(

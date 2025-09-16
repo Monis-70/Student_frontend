@@ -62,7 +62,7 @@ export default function CreatePaymentPage() {
         },
         feeType: data.feeType,
         gateway: data.gateway,
-        returnUrl: `${window.location.origin}/payments/status`,
+        returnUrl: `${window.location.origin}/payments/status`, // Redirect after payment
         description: data.description ?? undefined,
       };
 
@@ -100,7 +100,8 @@ export default function CreatePaymentPage() {
             const toStore = {
               serverOrderId, // MongoDB _id
               providerCollectId, // External provider ID (Edviron collect_request_id)
-              customOrderId: respData.custom_order_id || serverOrderId, // Internal custom ID
+              customOrderId: respData.custom_order_id || providerCollectId || serverOrderId,
+// Internal custom ID
               studentId: data.studentInfo.id,
               amount: numericAmount,
               feeType: data.feeType,

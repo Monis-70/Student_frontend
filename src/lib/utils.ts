@@ -1,26 +1,49 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export function mapStatus(apiStatus?: string, captureStatus?: string): 'success' | 'failed' | 'pending' | 'cancelled' {
+export type PaymentStatus = 'success' | 'failed' | 'pending' | 'cancelled';
+
+/**
+ * ✅ Unified status mapper (same as backend)
+ * Always maps raw API/gateway statuses to one of:
+ * 'success' | 'failed' | 'pending' | 'cancelled'
+ */
+export function mapStatus(apiStatus?: string): PaymentStatus {
   if (!apiStatus) return 'pending';
 
   const normalized = apiStatus.toUpperCase();
-  const capture = captureStatus?.toUpperCase();
 
-  if (normalized === 'SUCCESS') return 'success';
-  if (normalized === 'FAILED' || normalized === 'ERROR' || normalized === 'DECLINED') return 'failed';
-  if (normalized === 'CANCELLED' || normalized === 'USER_DROPPED' || normalized === 'CANCELED') return 'cancelled';
+  switch (normalized) {
+    case 'SUCCESS':
+    case 'COMPLETED':
+    case 'PAID':
+      return 'success';
 
-  // fallback if API is unclear
-  if (capture === 'PENDING') return 'pending';
+    case 'FAILED':
+    case 'ERROR':
+    case 'DECLINED':
+      return 'failed';
 
-  return 'pending';
+    case 'CANCELLED':
+    case 'CANCELED':
+    case 'USER_DROPPED':
+      return 'cancelled';
+
+    default:
+      return 'pending';
+  }
 }
 
+/**
+ * ✅ Merge Tailwind + conditional classnames
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * ✅ Format numbers as INR currency
+ */
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
@@ -28,16 +51,17 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * ✅ Format date/time safely
+ */
 export function formatDate(date: string | Date | null | undefined): string {
-  // Handle null, undefined, or empty string
   if (!date) {
     return 'N/A';
   }
 
   try {
     const dateObj = new Date(date);
-    
-    // Check if the date is valid
+
     if (isNaN(dateObj.getTime())) {
       return 'Invalid Date';
     }
